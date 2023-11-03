@@ -1,48 +1,40 @@
 #!/usr/bin/python3
-"""DB Storage"""
-from os import getenv
+""" DBStorage Module for HBNB project 
+This code was created entirely during this project. """
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import scoped_session
+from os import getenv
 from models.base_model import BaseModel, Base
-from models.engine.file_storage import FileStorage
-from models.user import User
-from models.state import State
 from models.city import City
-from models.amenity import Amenity
 from models.place import Place
 from models.review import Review
-
-
-classes = {
-    "User": User,
-    "State": State,
-    "City": City,
-    "Amenity": Amenity,
-    "Place": Place,
-    "Review": Review
-}
+from models.state import State
+from models.user import User
+from models.amenity import Amenity
+from models.engine.file_storage import FileStorage
 
 
 class DBStorage(FileStorage):
-    """MySQL database interaction"""
+    """ Defines the class: DBStorage,
+    for use with sqlalchemy database. """
     __engine = None
     __session = None
     _FileStorage__objects = {}
 
     def __init__(self):
-        """ Initialize instance of DBStorage """
+        """Creates the engine for sqlalchemy. """
         self.__engine = create_engine("mysql+mysqldb://{}:{}@{}/{}".
                                       format(getenv("HBNB_MYSQL_USER"),
                                              getenv("HBNB_MYSQL_PWD"),
                                              getenv("HBNB_MYSQL_HOST"),
                                              getenv("HBNB_MYSQL_DB")),
                                       pool_pre_ping=True)
-        
-        if getenv('HBNB_ENV') == "test":
+        if getenv("HBNB_ENV") == "test":
             Base.metadata.drop_all(self.__engine)
 
     def all(self, cls=None):
-        """ Re-Wrote function completely """
+        """ Returns the query of the given class, or all classes. """
         if cls:
             if type(cls) is str:
                 cls = eval(cls)
@@ -54,27 +46,32 @@ class DBStorage(FileStorage):
             objects.extend(self.__session.query(Place).all())
             objects.extend(self.__session.query(Review).all())
             objects.extend(self.__session.query(Amenity).all())
-        my_dict = {}
+        obj_dict = {}
         for obj in objects:
-            my_dict[f"{obj.__class__.__name__}.{obj.id}"] = obj
-        return my_dict
+            obj_dict[f"{obj.__class__.__name__}.{obj.id}"] = obj
+        return obj_dict
 
     def new(self, obj):
-        """adding obj to db sesh"""
+        """ Adds the given object to the current session. """
         self.__session.add(obj)
 
     def save(self):
-        """commit all changes to db sesh"""
+        """Commits all changes of the current database session"""
         self.__session.commit()
 
     def delete(self, obj=None):
-        """deleting from current db sesh obj if not None"""
+        """Deletes the given object from the current database session"""
         if obj is not None:
             self.__session.delete(obj)
 
     def reload(self):
-        """ Restructures the session """
+        """ Defines the session per sqlalchemy,
+        then saves it in __session. """
         Base.metadata.create_all(self.__engine)
-        my_session = sessionmaker(bind=self.__engine, expire_on_comit=False)
-        Session = scoped_session(my_session)
+        session_exp = sessionmaker(bind=self.__engine, expire_on_commit=False)
+        Session = scoped_session(session_exp)
         self.__session = Session()
+
+    def close(self):
+        """ Closing the session """
+        self.__session.close()
